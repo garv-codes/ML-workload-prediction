@@ -28,6 +28,17 @@ def mae(y_actual, y_pred):
     return np.mean(np.abs(y_actual - y_pred))
 
 
+def mape(y_actual, y_pred):
+    """Mean Absolute Percentage Error — commonly used alongside RMSE/MAE
+    in workload prediction literature. Avoids division by zero by masking
+    near-zero actuals."""
+    y_actual, y_pred = np.asarray(y_actual, dtype=float), np.asarray(y_pred, dtype=float)
+    mask = np.abs(y_actual) > 1e-8
+    if mask.sum() == 0:
+        return 0.0
+    return np.mean(np.abs((y_actual[mask] - y_pred[mask]) / y_actual[mask])) * 100
+
+
 def performance_score(y_actual, y_pred, w1=0.5, w2=0.5):
     """Eq. 4: weighted, normalized combination of RMSE and MAE.
     Lower is better. ~0% = near-perfect prediction.
@@ -103,6 +114,7 @@ def evaluate_arima_on_workload(df, train_frac=0.7, test_len=100,
         "actual": test,
         "RMSE": rmse(test, preds),
         "MAE": mae(test, preds),
+        "MAPE": mape(test, preds),
         "Score": performance_score(test, preds),
     }
 

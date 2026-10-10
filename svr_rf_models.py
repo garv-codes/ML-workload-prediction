@@ -15,7 +15,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import GridSearchCV
 
 from sliding_window import make_supervised, train_test_split_series
-from arima_baseline import rmse, mae, performance_score
+from arima_baseline import rmse, mae, mape, performance_score
 
 
 # ---------------------------------------------------------------------------
@@ -61,6 +61,7 @@ def evaluate_svr_on_workload(df, train_frac=0.7, test_len=100, window=5,
         "actual": y_test,
         "RMSE": rmse(y_test, preds),
         "MAE": mae(y_test, preds),
+        "MAPE": mape(y_test, preds),
         "Score": performance_score(y_test, preds),
     }
 
@@ -106,6 +107,7 @@ def evaluate_rf_on_workload(df, train_frac=0.7, test_len=100, window=5,
         "actual": y_test,
         "RMSE": rmse(y_test, preds),
         "MAE": mae(y_test, preds),
+        "MAPE": mape(y_test, preds),
         "Score": performance_score(y_test, preds),
     }
 
