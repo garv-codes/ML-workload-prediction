@@ -22,9 +22,6 @@
 6. [Running the Experiments](#-running-the-experiments)
 7. [Mathematical Formulation](#-mathematical-formulation)
 8. [Experimental Results & Reproduction](#-experimental-results--reproduction)
-9. [Integration Guide for Teammates (Cloud / Autoscaling)](#-integration-guide-for-teammates)
-10. [Viva & Examination Cheatsheet](#-viva--examination-cheatsheet)
-
 ---
 
 ## 📖 Project Overview
@@ -238,14 +235,6 @@ All generated plots and tables are saved directly into the `results/` directory:
 - `results/tables/grand_summary.csv`
 
 ---
-
-## 🤝 Integration Guide for Teammates
-
-If your teammates are building the Cloud Autoscaling Controller (e.g., using Kubernetes HPA, Docker, Flask, or AWS SDK), this section explains how to consume this ML module cleanly.
-
-### High-Level Interface Flow
-Teammates do **not** need to worry about sliding window transforms or PyTorch/sklearn internals. They use `DeploymentManager` and `predictors.py`:
-
 ```python
 # =====================================================================
 # Example Teammate Autoscaler Script: autoscaler_controller.py
@@ -277,25 +266,4 @@ def on_minute_tick(actual_request_count, fitted_model, window_history):
 
 ---
 
-## 🎓 Viva & Examination Cheatsheet
-
-### Frequently Asked Questions by Professors
-
-1. **Q: Why combine RMSE and MAE into a single Performance Score?**  
-   *A:* RMSE heavily penalizes large outlier errors (due to squaring), whereas MAE provides a robust linear average of typical error magnitude. Combining both via Euclidean norm $\sqrt{RMSE^2 + MAE^2}$ balances sensitivity to extreme traffic spikes and steady-state precision.
-
-2. **Q: Why does SVR perform best on Uniform (Bell-shaped) workloads?**  
-   *A:* The Radial Basis Function (RBF) kernel maps temporal features into infinite-dimensional Hilbert space, naturally fitting smooth parabolic curvatures without the step-like piecewise approximations typical of decision trees.
-
-3. **Q: Why does the framework use a two-strike threshold instead of retraining on the first error spike?**  
-   *A:* Cloud environments frequently experience transient network noise or momentary bursts. Immediate retraining would cause thrashing, high compute overhead, and model degradation. A two-strike mechanism with a tightened second threshold ($\lambda_2 = 0.50$) filters temporary outliers while swiftly catching genuine regime changes.
-
-4. **Q: What is the novelty of adding XGBoost and LSTM?**  
-   *A:* The 2026 paper omitted gradient boosting and deep recurrent models. XGBoost tests sequential gradient-based tree boosting (reducing bias on steep linear climbs), while LSTM tests hidden recurrence for sequence modeling without relying purely on fixed lag features.
-
----
-
-## 📜 References
-- Nashaat, M., et al. "A dynamic machine learning approach for workload prediction in cloud environments." *Scientific Reports*, vol. 16, no. 1, 2026. DOI: [10.1038/s41598-026-40777-z](https://www.nature.com/articles/s41598-026-40777-z).
-- Chen, T., & Guestrin, C. "XGBoost: A Scalable Tree Boosting System." *ACM KDD*, 2016.
-- Hochreiter, S., & Schmidhuber, J. "Long Short-Term Memory." *Neural Computation*, 1997.
+y." *Neural Computation*, 1997.
