@@ -1,0 +1,6 @@
+model,mean_Score,mean_RMSE,mean_MAE,cycles,cycles_best,overall_Score,hours_active
+SVR,15.11,3441.54,2481.92,45,14,11.83,264
+RandomForest,39.64,5891.66,4510.03,45,22,27.33,312
+XGBoost,46.94,6637.08,4957.45,45,4,28.91,288
+ARIMA,46.59,11225.92,6079.88,45,1,32.2,0
+LSTM,239.78,11780.66,9687.91,45,4,53.63,216
