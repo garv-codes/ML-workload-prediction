@@ -18,7 +18,6 @@ Behaviour (mirrors the flowchart in Fig. 4):
 """
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 from arima_baseline import performance_score
 

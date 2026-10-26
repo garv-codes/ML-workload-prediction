@@ -10,7 +10,6 @@ Implements:
 """
 
 import numpy as np
-import pandas as pd
 import pmdarima as pm
 
 

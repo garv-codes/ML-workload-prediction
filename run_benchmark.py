@@ -32,11 +32,9 @@ import pandas as pd
 import matplotlib
 matplotlib.use("Agg")  # non-interactive backend for saving plots
 import matplotlib.pyplot as plt
-import seaborn as sns
 
 from synthetic_workload import PATTERNS
 from model_selector import evaluate_all_models, select_active_model, results_to_table
-from arima_baseline import rmse, mae, mape, performance_score
 
 warnings.filterwarnings("ignore")
 
