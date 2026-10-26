@@ -30,7 +30,7 @@ import org.cloudbus.cloudsim.provisioners.RamProvisionerSimple;
 /**
  * Drives CloudSim with workload predictions produced by the Python MTTD framework.
  *
- * For every simulated hour we decide how many VMs to provision using 4 policies:
+ * For every simulated hour we decide how many VMs to provision using 5 policies:
  *   1. REACTIVE            : uses the PREVIOUS hour's real load (what a threshold autoscaler sees)
  *   2. MTTD (no retrain)   : uses predictions_noretrain.csv
  *   3. MTTD (with retrain) : uses predictions_retrain.csv   (full MTTD: 2-strike retraining)
@@ -60,7 +60,8 @@ public class ProvisioningSimulation {
     // MI needed per request, so that one VM (1000 MIPS) does exactly 4000 requests in 3600 s
     static final double MI_PER_HIT = (VM_MIPS * 3600.0) / HITS_PER_VM_PER_HOUR; // = 900 MI
 
-    // 0 = simulate every hour in the CSV; set e.g. 200 for a quick test run
+    // 0 = simulate every hour in the CSV (full run; published numbers must come from MAX_HOURS = 0);
+    // set to e.g. 100 or 200 for a quick test run
     static final int MAX_HOURS = 100;
 
     // ================================================================
