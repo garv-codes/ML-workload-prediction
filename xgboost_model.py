@@ -65,6 +65,8 @@ def evaluate_xgboost_on_workload(df, train_frac=0.7, test_len=100, window=5,
 
     return {
         "model_name": "XGBoost",
+        "model": model,
+        "window": window,
         "best_params": model.get_params(),
         "predictions": preds,
         "actual": y_test,

@@ -74,7 +74,7 @@ def _fit_predict_torch(X_train, y_train, X_test, window, units=32, epochs=60, lr
     with torch.no_grad():
         preds_norm = model(X_test_t).numpy()
     preds = preds_norm * std + mean
-    return preds
+    return preds, model
 
 
 def _fit_predict_tf(X_train, y_train, X_test, window, units=32, epochs=50):
@@ -99,7 +99,8 @@ def _fit_predict_tf(X_train, y_train, X_test, window, units=32, epochs=50):
     model.compile(optimizer=Adam(learning_rate=0.005), loss="mse")
     es = EarlyStopping(monitor="loss", patience=5, restore_best_weights=True)
     model.fit(X_train_3d, y_train, epochs=epochs, batch_size=16, callbacks=[es], verbose=0)
-    return model.predict(X_test_3d, verbose=0).flatten()
+    preds = model.predict(X_test_3d, verbose=0).flatten()
+    return preds, model
 
 
 def _fit_predict_mlp(X_train, y_train, X_test):
@@ -122,7 +123,8 @@ def _fit_predict_mlp(X_train, y_train, X_test):
     )
     mlp.fit(X_train_s, y_train_s)
     preds_s = mlp.predict(X_test_s)
-    return scaler_y.inverse_transform(preds_s.reshape(-1, 1)).flatten()
+    preds = scaler_y.inverse_transform(preds_s.reshape(-1, 1)).flatten()
+    return preds, mlp
 
 
 def evaluate_lstm_on_workload(df, train_frac=0.7, test_len=100, window=5,
@@ -153,10 +155,10 @@ def evaluate_lstm_on_workload(df, train_frac=0.7, test_len=100, window=5,
     X_test, y_test = X_all[n_train_samples:], y_all[n_train_samples:]
 
     if backend == "torch":
-        preds = _fit_predict_torch(X_train, y_train, X_test, window=window, units=units, epochs=epochs)
+        preds, model = _fit_predict_torch(X_train, y_train, X_test, window=window, units=units, epochs=epochs)
         model_name = "LSTM"
     elif backend == "tf":
-        preds = _fit_predict_tf(X_train, y_train, X_test, window=window, units=units, epochs=epochs)
+        preds, model = _fit_predict_tf(X_train, y_train, X_test, window=window, units=units, epochs=epochs)
         model_name = "LSTM"
     else:
         import warnings as _w
@@ -166,11 +168,13 @@ def evaluate_lstm_on_workload(df, train_frac=0.7, test_len=100, window=5,
             "labelled 'NeuralNet-MLP' in all outputs.",
             stacklevel=2,
         )
-        preds = _fit_predict_mlp(X_train, y_train, X_test)
+        preds, model = _fit_predict_mlp(X_train, y_train, X_test)
         model_name = "NeuralNet-MLP"
 
     return {
         "model_name": model_name,
+        "model": model,
+        "window": window,
         "predictions": preds,
         "actual": y_test,
         "RMSE": rmse(y_test, preds),

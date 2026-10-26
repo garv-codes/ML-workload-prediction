@@ -56,6 +56,8 @@ def evaluate_svr_on_workload(df, train_frac=0.7, test_len=100, window=5,
     preds = model.predict(X_test)
 
     return {
+        "model": model,
+        "window": window,
         "best_params": model.get_params(),
         "predictions": preds,
         "actual": y_test,
@@ -102,6 +104,8 @@ def evaluate_rf_on_workload(df, train_frac=0.7, test_len=100, window=5,
     preds = model.predict(X_test)
 
     return {
+        "model": model,
+        "window": window,
         "best_params": model.get_params(),
         "predictions": preds,
         "actual": y_test,

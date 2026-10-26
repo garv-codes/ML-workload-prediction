@@ -109,6 +109,7 @@ def evaluate_arima_on_workload(df, train_frac=0.7, test_len=100,
 
     return {
         "model_order": model.order,
+        "model": model,
         "predictions": preds,
         "actual": test,
         "RMSE": rmse(test, preds),
