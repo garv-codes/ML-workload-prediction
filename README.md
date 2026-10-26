@@ -1,139 +1,192 @@
-# ☁️ Machine Learning Workload Prediction in Cloud Environments
-### *Dynamic Multi-Model Framework with Adaptive Retraining (MTTD)*
+# Machine Learning Workload Prediction in Cloud Environments
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
-[![Research Reproduction](https://img.shields.io/badge/reproduction-Scientific%20Reports%202026-success.svg)](https://www.nature.com/articles/s41598-026-40777-z)
-[![Novelty](https://img.shields.io/badge/novelty-XGBoost%20%7C%20LSTM%20%7C%20MAPE-orange.svg)](#-novelty-contributions)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+**Dynamic Multi-Model Framework with Adaptive Retraining (MTTD)**
 
-> **Course:** Cloud Computing / Machine Learning Project (3rd Year B.Tech / B.E.)  
-> **Original Paper:** *"A dynamic machine learning approach for workload prediction in cloud environments"*  
-> **Authors:** Nashaat et al., *Scientific Reports* (Nature Portfolio), 2026  
-> **Paper DOI:** [`10.1038/s41598-026-40777-z`](https://www.nature.com/articles/s41598-026-40777-z)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+[![Paper](https://img.shields.io/badge/Paper-Scientific%20Reports%202026-blue.svg)](https://www.nature.com/articles/s41598-026-40777-z)
 
 ---
 
-## 📌 Table of Contents
-1. [Project Overview](#-project-overview)
-2. [MTTD Framework Architecture](#-mttd-framework-architecture)
-3. [Novelty Contributions](#-novelty-contributions)
-4. [Project Structure](#-project-structure)
-5. [Installation & Setup](#-installation--setup)
-6. [Running the Experiments](#-running-the-experiments)
-7. [Mathematical Formulation](#-mathematical-formulation)
-8. [Experimental Results & Reproduction](#-experimental-results--reproduction)
-9. [Integration Guide for Teammates (Cloud / Autoscaling)](#-integration-guide-for-teammates)
-10. [Viva & Examination Cheatsheet](#-viva--examination-cheatsheet)
+## 1. Overview
+
+Cloud platforms rely on proactive autoscaling to maintain SLAs while minimising
+resource over-provisioning.  Reactive, threshold-based autoscaling responds
+**after** traffic spikes, causing latency penalties and wasted capacity.
+
+This repository re-implements the **MTTD (Monitor–Train–Test–Deploy)** framework
+from [Nashaat et al., *Sci. Rep.* 16, 10983 (2026)](https://www.nature.com/articles/s41598-026-40777-z)
+and extends it with additional ML/DL architectures and a semi-synthetic cricket
+workload dataset.
+
+### Objectives
+
+| # | Objective | Description |
+|---|-----------|-------------|
+| 1 | **Paper Reproduction** | Implement all 4 MTTD phases with ARIMA, SVR, and Random Forest using the paper's exact mathematical formulations. |
+| 2 | **Novel Extensions** | Introduce **XGBoost** (gradient boosting vs. bagging) and **LSTM** (deep recurrent modelling) as additional candidate models, along with **MAPE** as a scale-invariant metric. |
+| 3 | **Semi-Synthetic Validation** | Evaluate the framework on a **Cricket Hourly Workload** trace built from real Wikimedia daily page views with a synthetic hourly profile (see [§4 Dataset](#4-dataset)). |
+| 4 | **Deployment API** | Provide a clean `predictors.py` streaming interface for integration with autoscaling controllers. |
 
 ---
 
-## 📖 Project Overview
+## 2. Framework Architecture
 
-Modern cloud platforms (Kubernetes, AWS Auto Scaling, Azure VM Scale Sets) require proactive autoscaling to maintain Service Level Agreements (SLAs) while minimizing resource over-provisioning costs. Reactive threshold-based autoscaling responds *after* traffic spikes, causing latency spikes and SLA penalties.
-
-This repository implements the **MTTD (Model Training, Testing, and Deployment)** dynamic workload prediction framework from Nashaat et al. (2026), enhanced with **novel ML/DL architectures (XGBoost, LSTM)** and a modular streaming inference API for cloud orchestration systems.
-
-### Key Objectives
-1. **Faithful Paper Reproduction:** Implement all 4 phases of MTTD with exact mathematical formulations for ARIMA, SVR, Random Forest, Performance Scoring ($S_i$), and the two-tier adaptive retraining threshold ($\lambda_1, \lambda_2$).
-2. **Novelty Extension:** Bridge gaps in the original paper by introducing:
-   - **XGBoost (Extreme Gradient Boosting)** to contrast boosting against Random Forest bagging.
-   - **LSTM (Long Short-Term Memory)** to evaluate deep recurrent modeling on sequential temporal dependencies.
-   - **MAPE (Mean Absolute Percentage Error)** for relative scale-invariant accuracy assessment.
-3. **Cloud Autoscaler Decoupling:** Provide a clean `predictors.py` interface enabling teammates to plug in trained models directly into autoscaling controllers or load balancers.
-
----
-
-## 🏗️ MTTD Framework Architecture
-
-The framework operates across 4 continuous phases:
+The MTTD framework operates across four continuous phases:
 
 ```
-┌────────────────────────────────────────────────────────────────────────┐
-│ Phase 1: Workload Identification & Preprocessing                       │
-│  - Synthetic & Real Traces (Uniform, Linear Low, Linear High, Random)  │
-│  - Sliding Window Feature Extraction (window = 5 timesteps)            │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│ Phase 2: Candidate Model Training                                      │
-│  - Paper Baseline: ARIMA(p,d,q), SVR (RBF Kernel), Random Forest       │
-│  - Novelty Models: XGBoost Regressor, PyTorch/TF LSTM                  │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│ Phase 3: Testing & Dynamic Model Selection                             │
-│  - Compute Root Mean Squared Error (RMSE) & Mean Absolute Error (MAE)  │
-│  - Compute Nashaat Performance Score: Score = sqrt(RMSE^2 + MAE^2)     │
-│  - Select Active Model = argmin(Score)                                 │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│ Phase 4: Continuous Deployment & Adaptive Retraining                   │
-│  - Deploy Active Model for streaming one-step-ahead forecasting        │
-│  - Strike 1: Score_t > Threshold_(t+1) -> Tighten threshold (lambda_2) │
-│  - Strike 2: Score_(t+1) > Threshold_(t+2) -> Trigger RETRAINING       │
-└────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│  Phase 1 — Workload Identification & Preprocessing                      │
+│    • Synthetic traces: Uniform, Linear (Low/High), Random               │
+│    • Semi-synthetic trace: Cricket Hourly Workload                      │
+│    • Sliding window feature extraction (window = 5 timesteps)           │
+└──────────────────────────────┬───────────────────────────────────────────┘
+                               ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│  Phase 2 — Candidate Model Training                                     │
+│    • Baseline: ARIMA(p,d,q), SVR (RBF kernel), Random Forest            │
+│    • Novel: XGBoost Regressor, LSTM (PyTorch / TensorFlow / MLP)        │
+└──────────────────────────────┬───────────────────────────────────────────┘
+                               ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│  Phase 3 — Testing & Dynamic Model Selection                            │
+│    • Compute RMSE, MAE, MAPE                                            │
+│    • Performance Score = √(RMSE² + MAE²)                                │
+│    • Active Model = argmin(Score)                                        │
+└──────────────────────────────┬───────────────────────────────────────────┘
+                               ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│  Phase 4 — Continuous Deployment & Adaptive Retraining                  │
+│    • Deploy active model for one-step-ahead forecasting                 │
+│    • Strike 1: Score > Threshold → tighten threshold (λ₂)              │
+│    • Strike 2: consecutive breach → trigger full retraining             │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🌟 Novelty Contributions
+## 3. Deviations from the Paper
 
-The original 2026 paper evaluates only ARIMA, SVR, and Random Forest. Our extensions provide tangible academic value:
+| Aspect | Paper (Nashaat et al. 2026) | This Repository |
+|--------|----------------------------|-----------------|
+| **Dataset** | FIFA World Cup 1998 / 2018 server request logs | Wikimedia daily page views for the 2023 Cricket World Cup, expanded to hourly with a synthetic profile.  Results are **not directly comparable** to the paper's Tables 10-13. |
+| **Ensemble Models** | Random Forest (bagging) | Random Forest + **XGBoost** (gradient boosting) |
+| **Deep Learning** | Not evaluated | **LSTM** with PyTorch, TensorFlow, and MLP fallback |
+| **Error Metrics** | RMSE, MAE, Score | RMSE, MAE, **MAPE**, Score |
+| **Deployment API** | Monolithic evaluation | Modular `predictors.py` streaming interface |
 
-| Feature | Original Paper (Nashaat et al.) | Our Extended Implementation | Academic Justification |
-| :--- | :--- | :--- | :--- |
-| **Ensemble Variety** | Bagging only (Random Forest) | **Random Forest + XGBoost** | Evaluates gradient boosting vs bagging under abrupt workload variance |
-| **Deep Learning** | None (explicitly avoided) | **PyTorch / TensorFlow LSTM** | Tests whether recurrent memory cells capture non-linear temporal dynamics better on volatile traces |
-| **Error Metrics** | RMSE, MAE, Score | **RMSE, MAE, MAPE, Score** | MAPE provides percentage deviation relative to current scale |
-| **Runtime Portability** | Custom script | **Defensive CPU-optimized fallback** | Runs seamlessly across standard CPU environments and Python 3.12 |
-| **API Decoupling** | Monolithic evaluation | **`predictors.py` Streaming API** | Clean separation of ML pipeline and teammate cloud deployment code |
+> **Note:** The paper's own FIFA datasets are available at
+> <https://github.com/walidmoussa2010/Workload-prediction->.
 
 ---
 
-## 📂 Project Structure
+## 4. Dataset
+
+### 4.1 Synthetic Workload Traces
+
+Four synthetic patterns reproduce the scenarios from Fig. 1 of the original paper:
+
+| Pattern | Description | Generator |
+|---------|-------------|-----------|
+| Uniform (Bell) | Ramps to peak then descends | `generate_uniform_workload()` |
+| Linear Low | Steady growth at 0.35 req/s/min | `generate_linear_workload(rate=0.35)` |
+| Linear High | Steep growth at 2.31 req/s/min | `generate_linear_workload(rate=2.31)` |
+| Random | High volatility, bounded random walk | `generate_random_workload()` |
+
+### 4.2 Cricket Hourly Workload (Semi-Synthetic)
+
+A **semi-synthetic** workload trace built from real Wikimedia daily page-view
+counts for the 2023 Cricket World Cup.  See [`data/README.md`](data/README.md)
+for full provenance.
+
+#### What is real / what is synthetic
+
+| Aspect | Status | Details |
+|--------|--------|---------|
+| Daily page-view totals | **Real** (measured) | 57 daily counts from the Wikimedia Pageviews API for `en.wikipedia`, article `2023_Cricket_World_Cup`, Oct 5 – Nov 30 2023. |
+| Hourly 70/30 peak/off-peak split | **Synthetic** | 70 % of each day's views assigned to hours 14:00–21:00 (IST match hours); 30 % to remaining hours. |
+| Within-day shape | **Synthetic** | Raised-cosine profile centred on 18:00 for peak hours; uniform for off-peak. |
+| Flash-crowd noise and spikes | **Synthetic** | Multiplicative log-normal noise (σ = 0.15) injected per hour, then renormalised. |
+| Daily total preservation | **Exact** | After noise, hourly values are renormalised so each day's sum equals the original daily total (max diff ≤ 1). |
+| Seed | Fixed (42) | Deterministic; same seed → identical file. |
+
+#### Why this dataset?
+
+The paper's FIFA server logs (1998/2018) are old and — for the 1998 trace —
+sparse at hourly granularity.  A 57-point daily series is too short to train
+time-series models on, hence the hourly expansion.  This expansion adds
+resolution that is **modelled, not measured**; it does not "solve" sparsity in
+the sense of recovering true hourly patterns.  Wikipedia page views are also a
+**proxy** for user traffic, not server request logs.
+
+#### How to regenerate the data
 
 ```bash
-cloud-computing/
-├── .gitignore                   # Ignores caches, checkpoints, and generated figures
-├── requirements.txt             # Project dependencies (pinned with compatible versions)
-├── README.md                    # Comprehensive documentation and integration guide
+python data/build_hourly_workload.py --seed 42
+```
+
+The script reads `data/raw/wikimedia_daily.csv` (cached offline).  Pass
+`--refresh` to re-fetch from the Wikimedia API.  Running with the same seed
+always produces a byte-identical output file.
+
+---
+
+## 5. Project Structure
+
+```
+ML-workload-prediction/
+├── README.md                    # This file
+├── requirements.txt             # Pinned dependencies
+├── .gitignore
 │
-├── synthetic_workload.py        # Phase 1: Generates the 4 workload patterns (Fig. 1)
+├── data/
+│   ├── README.md                # Dataset provenance & documentation
+│   ├── build_hourly_workload.py # Generates the semi-synthetic hourly CSV
+│   ├── cricket_hourly_workload.csv  # Canonical 1,344-row hourly trace
+│   └── raw/
+│       └── wikimedia_daily.csv  # Cached 57-row daily page-view data
+│
+├── synthetic_workload.py        # Phase 1: Synthetic workload generators (4 patterns)
 ├── sliding_window.py            # Phase 1: Sliding window time-series transform
 │
-├── arima_baseline.py            # Phase 2: ARIMA auto-fit & evaluation (Eq. 1-4)
+├── arima_baseline.py            # Phase 2: ARIMA auto-fit, metrics (RMSE, MAE, MAPE, Score)
 ├── svr_rf_models.py             # Phase 2: SVR (RBF) & Random Forest with GridSearchCV
-├── xgboost_model.py             # Novelty: XGBoost regressor with hyperparameter tuning
-├── lstm_model.py                # Novelty: Lightweight LSTM with PyTorch / TF backends
+├── xgboost_model.py             # Phase 2: XGBoost regressor (novel)
+├── lstm_model.py                # Phase 2: LSTM with multi-backend support (novel)
 │
-├── model_selector.py            # Phase 3: Evaluates candidate models & selects active model
-├── deployment_manager.py        # Phase 4: Two-tier adaptive threshold & retraining triggers
-├── predictors.py                # Online streaming inference wrappers for cloud orchestration
+├── model_selector.py            # Phase 3: Model evaluation & active model selection
+├── deployment_manager.py        # Phase 4: Two-tier adaptive threshold & retraining
+├── predictors.py                # Streaming inference wrappers for deployment
 │
-├── run_benchmark.py             # Complete benchmark script reproducing Tables 5-8 & plots
-└── results/                     # Auto-generated outputs (CSVs, figures, summary charts)
-    ├── figures/
-    └── tables/
+├── run_benchmark.py             # End-to-end benchmark (Tables 5–8 + novel comparisons)
+├── workload_patterns_preview.png
+└── results/                     # Auto-generated outputs
+    ├── figures/                  #   Prediction plots, workload patterns, summary charts
+    └── tables/                   #   Per-pattern CSVs and grand summary
 ```
 
 ---
 
-## 💻 Installation & Setup
+## 6. Installation
 
 ### Prerequisites
+
 - Python 3.10, 3.11, or 3.12
-- Recommended: Virtual environment (`venv`)
+- Virtual environment (recommended)
+
+### Setup
 
 ```bash
 # Clone the repository
 git clone https://github.com/garv-codes/ML-workload-prediction.git
 cd ML-workload-prediction
 
-# Create and activate virtual environment
+# Create and activate a virtual environment
 python -m venv venv
+
 # Windows (PowerShell):
 venv\Scripts\Activate.ps1
+
 # Linux / macOS:
 source venv/bin/activate
 
@@ -141,161 +194,196 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-> **Note on Deep Learning:** If using PyTorch on Windows without a GPU, install the lightweight CPU wheel:  
-> `pip install torch --index-url https://download.pytorch.org/whl/cpu`
+> **Note:** For PyTorch on Windows without a GPU, install the CPU-only wheel:
+> ```bash
+> pip install torch --index-url https://download.pytorch.org/whl/cpu
+> ```
 
 ---
 
-## 🚀 Running the Experiments
+## 7. Usage
 
-### 1. Full Benchmark (Reproduction + Novelty)
-Runs all 5 candidate models across all 4 workload patterns, computes metrics, selects active models, and exports comparison charts and CSV tables:
+### Full Benchmark (All 5 Models)
+
+Runs ARIMA, SVR, Random Forest, XGBoost, and LSTM across all synthetic
+workload patterns.  Generates comparison tables, prediction plots, and
+summary charts in `results/`.
+
 ```bash
 python run_benchmark.py
 ```
 
-### 2. Paper-Only Reproduction
-To run strictly the original 3 models (ARIMA, SVR, Random Forest) matching Tables 5–8 of the paper:
+### Paper-Only Reproduction (3 Models)
+
+Runs only the original ARIMA, SVR, and Random Forest models to reproduce
+Tables 5–8.
+
 ```bash
 python run_benchmark.py --original-only
 ```
 
-### 3. Individual Component Execution
-Each file is self-contained with a standalone demonstration:
+### Individual Module Testing
+
+Each module is self-contained and can be executed independently:
 
 ```bash
-# Test synthetic workload generators
-python synthetic_workload.py
-
-# Test ARIMA baseline
-python arima_baseline.py
-
-# Test SVR and Random Forest
-python svr_rf_models.py
-
-# Test XGBoost novelty model
-python xgboost_model.py
-
-# Test LSTM novelty model
-python lstm_model.py
-
-# Test Phase 3 model selection
-python model_selector.py
-
-# Test Phase 4 adaptive threshold & regime shift retraining
-python deployment_manager.py
+python synthetic_workload.py      # Generate and preview workload patterns
+python arima_baseline.py          # ARIMA baseline evaluation
+python svr_rf_models.py           # SVR and Random Forest evaluation
+python xgboost_model.py           # XGBoost evaluation
+python lstm_model.py              # LSTM evaluation
+python model_selector.py          # Phase 3: model selection across all patterns
+python deployment_manager.py      # Phase 4: adaptive threshold simulation
 ```
 
 ---
 
-## 📐 Mathematical Formulation
+## 8. Mathematical Formulation
 
-### 1. Error Metrics (Equations 1–3)
+### Error Metrics
 
-- **Root Mean Squared Error (RMSE):**
-  $$RMSE = \sqrt{\frac{1}{N}\sum_{t=1}^{N}(y_t - \hat{y}_t)^2}$$
+**Root Mean Squared Error (RMSE):**
 
-- **Mean Absolute Error (MAE):**
-  $$MAE = \frac{1}{N}\sum_{t=1}^{N}|y_t - \hat{y}_t|$$
+$$RMSE = \sqrt{\frac{1}{N}\sum_{t=1}^{N}(y_t - \hat{y}_t)^2}$$
 
-- **Mean Absolute Percentage Error (MAPE - Novelty):**
-  $$MAPE = \frac{1}{N}\sum_{t=1}^{N}\left|\frac{y_t - \hat{y}_t}{y_t}\right| \times 100\%$$
+**Mean Absolute Error (MAE):**
 
-### 2. Performance Score (Equation 4)
-The paper defines a single combined metric to rank models:
+$$MAE = \frac{1}{N}\sum_{t=1}^{N}|y_t - \hat{y}_t|$$
+
+**Mean Absolute Percentage Error (MAPE) — Novel:**
+
+$$MAPE = \frac{1}{N}\sum_{t=1}^{N}\left|\frac{y_t - \hat{y}_t}{y_t}\right| \times 100\%$$
+
+### Performance Score
+
 $$\text{Score}_i = \sqrt{RMSE_i^2 + MAE_i^2}$$
+
 $$\text{Active Model} = \arg\min_i (\text{Score}_i)$$
 
-### 3. Continuous Deployment Thresholds (Equations 5–6)
-When a model is deployed, its threshold dynamically adapts based on its performance:
+### Adaptive Retraining Thresholds
 
-- **Cycle $t+1$ (First Threshold):**
-  $$\text{Threshold}_{t+1} = \text{Score}_t + \lambda_1 \times \text{Score}_t \quad (\lambda_1 = 0.75)$$
+| Cycle | Formula | Purpose |
+|-------|---------|---------| 
+| $t+1$ | $\text{Threshold}_{t+1} = \text{Score}_t + \lambda_1 \times \text{Score}_t \quad (\lambda_1 = 0.75)$ | Initial tolerance band |
+| $t+2$ | $\text{Threshold}_{t+2} = \text{Score}_{t+1} + \lambda_2 \times \text{Score}_{t+1} \quad (\lambda_2 = 0.50)$ | Tightened after first breach |
 
-- **Cycle $t+2$ (Tightened Threshold after 1 Strike):**
-  $$\text{Threshold}_{t+2} = \text{Score}_{t+1} + \lambda_2 \times \text{Score}_{t+1} \quad (\lambda_2 = 0.50)$$
-
-- **Retraining Condition:** If $\text{Score} > \text{Threshold}$ on two consecutive cycles, retraining and model reselection are immediately triggered.
-
----
-
-## 📊 Experimental Results & Reproduction
-
-### Summary Across Workload Patterns
-
-| Workload Pattern | Characteristics | Paper Best Model | Our Extended Winner | Why? |
-| :--- | :--- | :--- | :--- | :--- |
-| **Uniform / Bell** | Smooth rise to peak, smooth descent | **SVR** | **SVR / LSTM** | RBF kernel and LSTM smoothly interpolate non-linear parabolic curves without step artifacts. |
-| **Linear Low Rate** | Steady slope (0.35 req/s/min) | **Random Forest** | **Random Forest / XGBoost** | Tree-based models partition monotonous intervals with minimal bias. |
-| **Linear High Rate** | Steep slope (2.31 req/s/min) | **Random Forest** | **XGBoost** | Gradient boosting refines residual errors on sharp gradients better than bagging. |
-| **Random Workload** | High volatility, low autocorrelation | **Retraining Loop** | **LSTM / ARIMA** | LSTM filters noise via forget gates; frequent retraining stabilizes drift. |
-
-All generated plots and tables are saved directly into the `results/` directory:
-- `results/figures/fig1_workload_patterns.png`
-- `results/figures/predictions_<pattern>.png`
-- `results/figures/summary_comparison.png`
-- `results/tables/table_<pattern>.csv`
-- `results/tables/grand_summary.csv`
+**Retraining is triggered** when the score exceeds the threshold on two
+consecutive deployment cycles.
 
 ---
 
-## 🤝 Integration Guide for Teammates
+## 9. Results
 
-If your teammates are building the Cloud Autoscaling Controller (e.g., using Kubernetes HPA, Docker, Flask, or AWS SDK), this section explains how to consume this ML module cleanly.
+### 9.1 Synthetic Workload Patterns
 
-### High-Level Interface Flow
-Teammates do **not** need to worry about sliding window transforms or PyTorch/sklearn internals. They use `DeploymentManager` and `predictors.py`:
+Results from `run_benchmark.py` across the four synthetic patterns
+(697 time steps, 70/30 train-test split, 100-point test window, window=5):
+
+| Pattern | Model | RMSE | MAE | MAPE | Score (%) | Best? |
+|---------|-------|------|-----|------|-----------|-------|
+| uniform | ARIMA | 2.2869 | 1.8859 | 1.42% | 1.51 | ✓ |
+| uniform | SVR | 16.8411 | 13.9486 | 11.49% | 11.11 | |
+| uniform | RandomForest | 5.7550 | 5.1867 | 3.96% | 3.95 | |
+| uniform | XGBoost | 6.3592 | 5.6850 | 4.31% | 4.35 | |
+| uniform | LSTM | 5.4387 | 4.8183 | 3.80% | 3.70 | |
+| linear_low | ARIMA | 1.0289 | 0.8201 | 0.44% | 0.49 | ✓ |
+| linear_low | SVR | 97.2096 | 94.1927 | 49.73% | 50.95 | |
+| linear_low | RandomForest | 21.1237 | 18.5355 | 9.61% | 10.56 | |
+| linear_low | XGBoost | 20.9576 | 18.3463 | 9.51% | 10.46 | |
+| linear_low | LSTM | 4.4614 | 4.1254 | 2.17% | 2.29 | |
+| linear_high | ARIMA | 1.0375 | 0.8259 | 0.07% | 0.08 | ✓ |
+| linear_high | SVR | 674.8332 | 671.4941 | 54.05% | 54.28 | |
+| linear_high | RandomForest | 135.9055 | 118.4355 | 9.29% | 10.25 | |
+| linear_high | XGBoost | 136.2235 | 118.8002 | 9.32% | 10.28 | |
+| linear_high | LSTM | 27.1023 | 25.8980 | 2.06% | 2.14 | |
+| random | ARIMA | 8.2045 | 6.5380 | 3.28% | 3.63 | ✓ |
+| random | SVR | 18.6115 | 12.8222 | 7.00% | 7.73 | |
+| random | RandomForest | 8.8420 | 7.2290 | 3.66% | 3.96 | |
+| random | XGBoost | 8.5104 | 7.0343 | 3.55% | 3.83 | |
+| random | LSTM | 8.2452 | 6.7314 | 3.40% | 3.69 | |
+
+### 9.2 Semi-Synthetic Cricket Trace (real daily totals, synthetic hourly profile)
+
+*Results pending.*  The cricket hourly workload dataset
+(`data/cricket_hourly_workload.csv`) is available for benchmarking but has not
+yet been run through `run_benchmark.py`.
+
+> **Caveat:** The daily seasonality (24-hour cycle, match-hour peak) in this
+> dataset is **built into the data by construction** — models learning this
+> pattern is expected and is not evidence about real traffic behaviour.
+
+### Output Artifacts
+
+All generated results are saved to the `results/` directory:
+
+- `results/figures/fig1_workload_patterns.png` — Workload pattern visualisation
+- `results/figures/predictions_<pattern>.png` — Per-pattern prediction plots
+- `results/figures/summary_comparison.png` — Cross-model comparison chart
+- `results/tables/table_<pattern>.csv` — Per-pattern metric tables
+- `results/tables/grand_summary.csv` — Consolidated results across all patterns
+
+---
+
+## 10. Limitations
+
+1. **Synthetic hourly profile:** The intra-day shape (70/30 peak/off-peak split,
+   raised-cosine profile, log-normal noise) is entirely synthetic.  Models that
+   learn the 24-hour cycle or match-hour peak are learning a pattern that was
+   **injected by the build script**, not observed from real traffic.
+
+2. **Flash-crowd spikes are noise:** The spikes in the hourly trace come from
+   multiplicative log-normal noise, not from real flash-crowd events.  Model
+   performance on these spikes does not validate real-world spike handling.
+
+3. **Page views ≠ server requests:** Wikipedia page views are a proxy for
+   user interest, not actual server request logs (which include API calls,
+   static assets, bots, etc.).  The paper's FIFA dataset consists of HTTP
+   request logs, which have different statistical properties.
+
+4. **Results not comparable to paper:** Because the dataset differs (semi-synthetic
+   Wikipedia page views vs. real FIFA server logs), the numbers in §9 cannot
+   be directly compared to the paper's Tables 10-13.
+
+---
+
+## 11. Deployment Integration
+
+The `predictors.py` module provides a unified streaming interface for
+integrating trained models into autoscaling controllers:
 
 ```python
-# =====================================================================
-# Example Teammate Autoscaler Script: autoscaler_controller.py
-# =====================================================================
 from deployment_manager import DeploymentManager
-from predictors import make_rf_predictor, make_xgboost_predictor, make_svr_predictor
+from predictors import make_rf_predictor
 
-# 1. Initialize DeploymentManager with initial Phase 3 score
+# Initialise with the active model's Phase 3 score
 manager = DeploymentManager(active_model_name="RandomForest", initial_score=1.42)
 
-# 2. In your cloud event loop (e.g., running every 1 minute):
-def on_minute_tick(actual_request_count, fitted_model, window_history):
-    # a. Predict next minute's traffic using unified predictor
-    predictor = make_rf_predictor(fitted_model, window=5, initial_history=window_history)
-    predicted_next_min = predictor.predict_next()
-    
-    # b. Compute scaling decision for Kubernetes / Cloud VM
-    # Formula: Target Replicas = ceil(predicted_traffic / capacity_per_pod)
-    pods_needed = int(np.ceil(predicted_next_min / 50.0))
-    # scale_kubernetes_deployment(replicas=pods_needed)
-    
-    # c. At the end of each deployment cycle (e.g., every 10 mins), feed cycle data:
-    cycle_status = manager.run_cycle(actual_values=[...], predicted_values=[...])
-    
-    if cycle_status["retrain_triggered"]:
-        print("⚠️ Warning: Workload drift detected! Triggering Model Retraining...")
-        # Trigger Phase 2 & 3 reselection
+# Create a predictor wrapping the fitted model
+predictor = make_rf_predictor(fitted_model, window=5, initial_history=recent_data)
+
+# Predict next minute's traffic
+predicted = predictor.predict_next()
+
+# Feed observed value back
+predictor.observe(actual_value)
+
+# Run deployment cycle and check for retraining
+status = manager.run_cycle(actual_values=[...], predicted_values=[...])
+if status["retrain_triggered"]:
+    # Trigger Phase 2 & 3 reselection
+    pass
 ```
 
 ---
 
-## 🎓 Viva & Examination Cheatsheet
+## 12. References
 
-### Frequently Asked Questions by Professors
-
-1. **Q: Why combine RMSE and MAE into a single Performance Score?**  
-   *A:* RMSE heavily penalizes large outlier errors (due to squaring), whereas MAE provides a robust linear average of typical error magnitude. Combining both via Euclidean norm $\sqrt{RMSE^2 + MAE^2}$ balances sensitivity to extreme traffic spikes and steady-state precision.
-
-2. **Q: Why does SVR perform best on Uniform (Bell-shaped) workloads?**  
-   *A:* The Radial Basis Function (RBF) kernel maps temporal features into infinite-dimensional Hilbert space, naturally fitting smooth parabolic curvatures without the step-like piecewise approximations typical of decision trees.
-
-3. **Q: Why does the framework use a two-strike threshold instead of retraining on the first error spike?**  
-   *A:* Cloud environments frequently experience transient network noise or momentary bursts. Immediate retraining would cause thrashing, high compute overhead, and model degradation. A two-strike mechanism with a tightened second threshold ($\lambda_2 = 0.50$) filters temporary outliers while swiftly catching genuine regime changes.
-
-4. **Q: What is the novelty of adding XGBoost and LSTM?**  
-   *A:* The 2026 paper omitted gradient boosting and deep recurrent models. XGBoost tests sequential gradient-based tree boosting (reducing bias on steep linear climbs), while LSTM tests hidden recurrence for sequence modeling without relying purely on fixed lag features.
+1. Nashaat, M., et al. "A dynamic machine learning approach for workload prediction in cloud environments." *Scientific Reports*, vol. 16, no. 1, 2026. DOI: [10.1038/s41598-026-40777-z](https://www.nature.com/articles/s41598-026-40777-z)
+2. Chen, T., & Guestrin, C. "XGBoost: A Scalable Tree Boosting System." *ACM KDD*, 2016.
+3. Hochreiter, S., & Schmidhuber, J. "Long Short-Term Memory." *Neural Computation*, 1997.
 
 ---
 
-## 📜 References
-- Nashaat, M., et al. "A dynamic machine learning approach for workload prediction in cloud environments." *Scientific Reports*, vol. 16, no. 1, 2026. DOI: [10.1038/s41598-026-40777-z](https://www.nature.com/articles/s41598-026-40777-z).
-- Chen, T., & Guestrin, C. "XGBoost: A Scalable Tree Boosting System." *ACM KDD*, 2016.
-- Hochreiter, S., & Schmidhuber, J. "Long Short-Term Memory." *Neural Computation*, 1997.
+## 13. License
+
+This project is licensed under the [MIT License](LICENSE).
