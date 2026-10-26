@@ -155,8 +155,15 @@ def evaluate_lstm_on_workload(df, train_frac=0.7, test_len=100, window=5,
         preds = _fit_predict_tf(X_train, y_train, X_test, window=window, units=units, epochs=epochs)
         model_name = "LSTM"
     else:
+        import warnings as _w
+        _w.warn(
+            "Neither PyTorch nor TensorFlow is available; falling back to "
+            "scikit-learn MLPRegressor (not a true LSTM).  The model will be "
+            "labelled 'NeuralNet-MLP' in all outputs.",
+            stacklevel=2,
+        )
         preds = _fit_predict_mlp(X_train, y_train, X_test)
-        model_name = "LSTM/NeuralNet"
+        model_name = "NeuralNet-MLP"
 
     return {
         "model_name": model_name,
