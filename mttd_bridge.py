@@ -1,13 +1,14 @@
 """
-mttd_bridge.py  --  Runs the MTTD loop (Monitor-Train-Test-Deploy) on a real
-hourly workload trace and exports predictions.csv for the CloudSim simulation.
+mttd_bridge.py  --  Runs the MTTD loop (Monitor-Train-Test-Deploy) on a
+semi-synthetic hourly workload trace (real daily totals, synthetic hourly profile)
+and exports predictions.csv for the CloudSim simulation.
 
 Put this file in the same folder as deployment_manager.py / arima_baseline.py.
 
 Usage:
-    python mttd_bridge.py --csv cricket_hourly_workload.csv --out predictions.csv
-    python mttd_bridge.py --csv cricket_hourly_workload.csv --no-arima     # if pmdarima won't install
-    python mttd_bridge.py --csv cricket_hourly_workload.csv --no-retrain   # "MTTD without retraining" run
+    python mttd_bridge.py --csv data/cricket_hourly_workload.csv --out predictions.csv
+    python mttd_bridge.py --csv data/cricket_hourly_workload.csv --no-arima     # if pmdarima won't install
+    python mttd_bridge.py --csv data/cricket_hourly_workload.csv --no-retrain   # "MTTD without retraining" run
 
 Output columns:
     hour, actual, predicted, active_model, retrain_event
@@ -323,7 +324,8 @@ def summarize(log, pred_df, per_model, prefix):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--csv", required=True)
+    ap.add_argument("--csv", default="data/cricket_hourly_workload.csv",
+                    help="path to workload CSV (default: data/cricket_hourly_workload.csv)")
     ap.add_argument("--out", default="predictions.csv")
     ap.add_argument("--no-arima", action="store_true")
     ap.add_argument("--skip", default="", help="comma list from: svr,rf,arima,xgb,lstm")
