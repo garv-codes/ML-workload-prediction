@@ -80,10 +80,14 @@ def _fit_predict_torch(X_train, y_train, X_test, window, units=32, epochs=60, lr
 def _fit_predict_tf(X_train, y_train, X_test, window, units=32, epochs=50):
     import os
     os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+    import tensorflow as tf
     from tensorflow.keras.models import Sequential
     from tensorflow.keras.layers import LSTM, Dense
     from tensorflow.keras.callbacks import EarlyStopping
     from tensorflow.keras.optimizers import Adam
+
+    # Seed TensorFlow for reproducibility (mirrors torch.manual_seed(42))
+    tf.keras.utils.set_random_seed(42)
 
     X_train_3d = X_train.reshape(X_train.shape[0], window, 1)
     X_test_3d = X_test.reshape(X_test.shape[0], window, 1)
