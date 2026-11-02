@@ -31,12 +31,20 @@ CYCLE = 24        # deployment cycle = 1 day
 
 # ---------------------------------------------------------------- data
 def load_series(path):
+    import warnings
     df = pd.read_csv(path)
     df = df.iloc[:, :2]
     df.columns = ["t", "hits"]
     df["hits"] = pd.to_numeric(df["hits"], errors="coerce")
     df = df.dropna().reset_index(drop=True)      # removes the '** Process exited **' line
-    return df["hits"].values.astype(float)
+    series = df["hits"].values.astype(float)
+    if len(series) != 1344:
+        warnings.warn(
+            f"Expected canonical dataset of 1,344 rows, but loaded {len(series)} rows from {path}",
+            UserWarning,
+            stacklevel=2,
+        )
+    return series
 
 
 def make_xy(series, window=WINDOW):
