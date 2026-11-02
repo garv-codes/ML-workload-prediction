@@ -1,6 +1,0 @@
-model,mean_Score,mean_RMSE,mean_MAE,cycles,cycles_best,overall_Score,hours_active
-SVR,72.9,6234.85,5143.76,45,9,22.41,0
-NeuralNet-MLP,67.52,6996.31,5376.77,45,2,24.65,0
-ARIMA,34.46,11154.53,5884.14,45,8,30.57,0
-XGBoost,54.05,7271.13,5553.95,45,10,30.66,0
-RandomForest,53.37,7714.48,5945.88,45,16,32.78,1080
