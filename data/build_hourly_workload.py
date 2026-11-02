@@ -35,7 +35,7 @@ NOISE_LOW, NOISE_HIGH = 0.92, 1.08   # +/-8% uniform noise
 SEED = 42
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-DEFAULT_INPUT = SCRIPT_DIR / "raw" / "daily_totals_recovered.csv"
+DEFAULT_INPUT = SCRIPT_DIR / "raw" / "pageviews-2023-10-01-2023-11-25.csv"
 DEFAULT_OUT = SCRIPT_DIR / "cricket_hourly_workload.csv"
 
 
