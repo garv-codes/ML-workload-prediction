@@ -1,0 +1,68 @@
+Loaded 1344 hourly points, min=630 max=117612
+[warn] torch not available -> using MLP fallback instead of LSTM
+[t=264] models compared: ['SVR', 'RandomForest', 'ARIMA', 'XGBoost', 'NeuralNet-MLP']
+[t=264] initial scores {'SVR': 11.75, 'RandomForest': 6.49, 'ARIMA': 29.18, 'XGBoost': 7.07, 'NeuralNet-MLP': 9.81} -> active = RandomForest
+  cycle  1 hours 264-287: active=RandomForest score=6.00% thr=11.35% strikes=0 retrain=False
+  cycle  2 hours 288-311: active=RandomForest score=10.69% thr=10.51% strikes=1 retrain=False
+  cycle  3 hours 312-335: active=RandomForest score=7.51% thr=16.04% strikes=0 retrain=False
+  cycle  4 hours 336-359: active=RandomForest score=5.86% thr=13.14% strikes=0 retrain=False
+  cycle  5 hours 360-383: active=RandomForest score=6.28% thr=10.26% strikes=0 retrain=False
+  cycle  6 hours 384-407: active=RandomForest score=5.80% thr=11.00% strikes=0 retrain=False
+  cycle  7 hours 408-431: active=RandomForest score=5.94% thr=10.15% strikes=0 retrain=False
+  cycle  8 hours 432-455: active=RandomForest score=6.85% thr=10.40% strikes=0 retrain=False
+  cycle  9 hours 456-479: active=RandomForest score=6.25% thr=11.98% strikes=0 retrain=False
+  cycle 10 hours 480-503: active=RandomForest score=3.96% thr=10.93% strikes=0 retrain=False
+  cycle 11 hours 504-527: active=RandomForest score=20.75% thr=6.94% strikes=1 retrain=False
+  cycle 12 hours 528-551: active=RandomForest score=97.48% thr=31.13% strikes=0 retrain=True
+[warn] torch not available -> using MLP fallback instead of LSTM
+  >>> RETRAIN at hour 552: scores {'SVR': 7.48, 'RandomForest': 5.42, 'ARIMA': 33.24, 'XGBoost': 7.15, 'NeuralNet-MLP': 10.93} -> active = RandomForest
+  cycle 13 hours 552-575: active=RandomForest score=5.00% thr=9.48% strikes=0 retrain=False
+  cycle 14 hours 576-599: active=RandomForest score=3.67% thr=8.76% strikes=0 retrain=False
+  cycle 15 hours 600-623: active=RandomForest score=6.20% thr=6.42% strikes=0 retrain=False
+  cycle 16 hours 624-647: active=RandomForest score=5.83% thr=10.84% strikes=0 retrain=False
+  cycle 17 hours 648-671: active=RandomForest score=5.80% thr=10.20% strikes=0 retrain=False
+  cycle 18 hours 672-695: active=RandomForest score=4.18% thr=10.16% strikes=0 retrain=False
+  cycle 19 hours 696-719: active=RandomForest score=7.09% thr=7.31% strikes=0 retrain=False
+  cycle 20 hours 720-743: active=RandomForest score=4.36% thr=12.41% strikes=0 retrain=False
+  cycle 21 hours 744-767: active=RandomForest score=6.55% thr=7.63% strikes=0 retrain=False
+  cycle 22 hours 768-791: active=RandomForest score=5.89% thr=11.46% strikes=0 retrain=False
+  cycle 23 hours 792-815: active=RandomForest score=6.33% thr=10.31% strikes=0 retrain=False
+  cycle 24 hours 816-839: active=RandomForest score=29.87% thr=11.07% strikes=1 retrain=False
+  cycle 25 hours 840-863: active=RandomForest score=17.21% thr=44.81% strikes=0 retrain=False
+  cycle 26 hours 864-887: active=RandomForest score=4.92% thr=30.11% strikes=0 retrain=False
+  cycle 27 hours 888-911: active=RandomForest score=13.65% thr=8.62% strikes=1 retrain=False
+  cycle 28 hours 912-935: active=RandomForest score=4.98% thr=20.48% strikes=0 retrain=False
+  cycle 29 hours 936-959: active=RandomForest score=5.55% thr=8.71% strikes=0 retrain=False
+  cycle 30 hours 960-983: active=RandomForest score=4.89% thr=9.71% strikes=0 retrain=False
+  cycle 31 hours 984-1007: active=RandomForest score=10.89% thr=8.57% strikes=1 retrain=False
+  cycle 32 hours 1008-1031: active=RandomForest score=5.26% thr=16.33% strikes=0 retrain=False
+  cycle 33 hours 1032-1055: active=RandomForest score=90.14% thr=9.20% strikes=1 retrain=False
+  cycle 34 hours 1056-1079: active=RandomForest score=102.85% thr=135.21% strikes=0 retrain=False
+  cycle 35 hours 1080-1103: active=RandomForest score=75.05% thr=179.99% strikes=0 retrain=False
+  cycle 36 hours 1104-1127: active=RandomForest score=23.16% thr=131.33% strikes=0 retrain=False
+  cycle 37 hours 1128-1151: active=RandomForest score=90.16% thr=40.53% strikes=1 retrain=False
+  cycle 38 hours 1152-1175: active=RandomForest score=80.70% thr=135.24% strikes=0 retrain=False
+  cycle 39 hours 1176-1199: active=RandomForest score=79.11% thr=141.23% strikes=0 retrain=False
+  cycle 40 hours 1200-1223: active=RandomForest score=166.82% thr=138.45% strikes=1 retrain=False
+  cycle 41 hours 1224-1247: active=RandomForest score=130.00% thr=250.23% strikes=0 retrain=False
+  cycle 42 hours 1248-1271: active=RandomForest score=142.79% thr=227.50% strikes=0 retrain=False
+  cycle 43 hours 1272-1295: active=RandomForest score=169.32% thr=249.88% strikes=0 retrain=False
+  cycle 44 hours 1296-1319: active=RandomForest score=386.87% thr=296.31% strikes=1 retrain=False
+  cycle 45 hours 1320-1343: active=RandomForest score=523.03% thr=580.30% strikes=0 retrain=False
+
+=== Model comparison over all deployment cycles (lower Score = better) ===
+               mean_Score  mean_RMSE  mean_MAE  cycles  cycles_best  overall_Score  hours_active
+model                                                                                           
+SVR                 72.90    6234.85   5143.76      45            9          22.41             0
+NeuralNet-MLP       67.52    6996.31   5376.77      45            2          24.65             0
+ARIMA               34.46   11154.53   5884.14      45            8          30.57             0
+XGBoost             54.05    7271.13   5553.95      45           10          30.66             0
+RandomForest        53.37    7714.48   5945.88      45           16          32.78          1080
+
+Best single model on this dataset (lowest overall_Score): SVR (22.41%)
+MTTD (dynamic switching) overall Score: 32.78%
+(all models above are retrained at the same MTTD retraining events; overall_Score = Eq. 4 on the full deployment period)
+Saved results/predictions_retrain_model_scores.csv, results/predictions_retrain_model_summary.csv, results/predictions_retrain_model_comparison.png
+
+Wrote results/predictions_retrain.csv (1080 rows). Overall Score = 32.78%
+Saved run manifest to results\run_manifest.json

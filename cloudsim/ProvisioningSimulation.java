@@ -62,7 +62,7 @@ public class ProvisioningSimulation {
 
     // 0 = simulate every hour in the CSV (full run; published numbers must come from MAX_HOURS = 0);
     // set to e.g. 100 or 200 for a quick test run
-    static final int MAX_HOURS = 100;
+    static final int MAX_HOURS = 0;
 
     // ================================================================
     public static void main(String[] args) throws Exception {
