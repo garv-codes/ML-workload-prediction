@@ -1,0 +1,30 @@
+=== Models used by MTTD (predictions_retrain.csv) ===
+  RandomForest      1080 hours (100.0%)
+  No model switches
+
+=== Models used by MTTD (predictions_noretrain.csv) ===
+  RandomForest      1080 hours (100.0%)
+  No model switches
+
+Simulating 1080 hours x 5 policies ...
+  ... 100/1080 hours done
+  ... 200/1080 hours done
+  ... 300/1080 hours done
+  ... 400/1080 hours done
+  ... 500/1080 hours done
+  ... 600/1080 hours done
+  ... 700/1080 hours done
+  ... 800/1080 hours done
+  ... 900/1080 hours done
+  ... 1000/1080 hours done
+
+Finished in 10 s
+
+Policy             VM-hours   Wasted VMh    SLA viol. Under-prov hrs Avg resp (s)
+REACTIVE               7593         1064      56 ( 5.2%)        56           3217
+MTTD-noRetrain         9018         2623     171 (15.8%)       171           2640
+MTTD-Retrain           7475         1077     145 (13.4%)       145           3036
+ORACLE                 7591          610       0 ( 0.0%)         0           2881
+MTTD-Hybrid            8707         1796      20 ( 1.9%)        20           2585
+
+Per-hour details written to cloudsim_results.csv

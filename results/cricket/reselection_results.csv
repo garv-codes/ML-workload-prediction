@@ -1,0 +1,7 @@
+Strategy,Score,Switches,Models_used,VM_hours,SLA_violations
+Standard MTTD,32.78,0,1,7475,145
+Reselect every 24 h on last 24 h,18.55,23,4,7493,138
+Reselect every 24 h on last 72 h,16.30,11,4,7503,139
+Reselect every 1 h on last 24 h,15.42,60,5,7481,127
+Reselect every 1 h on last 6 h,19.93,262,5,7413,120
+Retrain + reselect every 24 h,16.13,26,5,7346,124
