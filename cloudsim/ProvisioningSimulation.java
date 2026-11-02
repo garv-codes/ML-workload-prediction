@@ -44,10 +44,10 @@ import org.cloudbus.cloudsim.provisioners.RamProvisionerSimple;
  */
 public class ProvisioningSimulation {
 
-    // ---------- file locations (change if needed) ----------
-    static final String RETRAIN_CSV   = "predictions_retrain.csv";
-    static final String NORETRAIN_CSV = "predictions_noretrain.csv";
-    static final String RESULT_CSV    = "cloudsim_results.csv";
+    // ---------- file locations (overridable via command-line args) ----------
+    static final String DEFAULT_RETRAIN_CSV   = "predictions_retrain.csv";
+    static final String DEFAULT_NORETRAIN_CSV = "predictions_noretrain.csv";
+    static final String DEFAULT_RESULT_CSV    = "cloudsim_results.csv";
 
     // ---------- capacity model ----------
     static final double HITS_PER_VM_PER_HOUR = 4000;   // one VM can serve 4000 requests / hour
@@ -68,10 +68,18 @@ public class ProvisioningSimulation {
     public static void main(String[] args) throws Exception {
         Log.disable(); // CloudSim is very chatty; we print our own summary
 
-        double[][] rt = readCsv(RETRAIN_CSV);    // [i][0]=actual [i][1]=predicted
-        double[][] nr = readCsv(NORETRAIN_CSV);
-        printModelUsage(RETRAIN_CSV);
-        printModelUsage(NORETRAIN_CSV);
+        // Optional command-line arguments:
+        //   args[0] = with-retraining predictions CSV  (default: predictions_retrain.csv)
+        //   args[1] = no-retraining predictions CSV    (default: predictions_noretrain.csv)
+        //   args[2] = output CSV                       (default: cloudsim_results.csv)
+        String retrainCsv  = (args.length > 0) ? args[0] : DEFAULT_RETRAIN_CSV;
+        String noretrainCsv = (args.length > 1) ? args[1] : DEFAULT_NORETRAIN_CSV;
+        String resultCsv    = (args.length > 2) ? args[2] : DEFAULT_RESULT_CSV;
+
+        double[][] rt = readCsv(retrainCsv);    // [i][0]=actual [i][1]=predicted
+        double[][] nr = readCsv(noretrainCsv);
+        printModelUsage(retrainCsv);
+        printModelUsage(noretrainCsv);
         int n = rt.length;
         if (MAX_HOURS > 0 && MAX_HOURS < n) n = MAX_HOURS;
 
@@ -79,7 +87,7 @@ public class ProvisioningSimulation {
         double[] vmHours = new double[5], waste = new double[5], sumMakespan = new double[5];
         int[] violations = new int[5], underHours = new int[5];
 
-        PrintWriter out = new PrintWriter(RESULT_CSV);
+        PrintWriter out = new PrintWriter(resultCsv);
         out.println("hour,actual,policy,vms,required_vms,makespan_s,sla_violated");
 
         System.out.println("Simulating " + n + " hours x 5 policies ...");
@@ -123,7 +131,7 @@ public class ProvisioningSimulation {
                     names[p], vmHours[p], waste[p], violations[p], 100.0 * violations[p] / n,
                     underHours[p], sumMakespan[p] / n));
         }
-        System.out.println("\nPer-hour details written to " + RESULT_CSV);
+        System.out.println("\nPer-hour details written to " + resultCsv);
     }
 
     // ================================================================

@@ -23,3 +23,11 @@ Thumbs.db
 
 # Temporary / incoming
 _incoming/
+
+# CloudSim build and dependencies
+cloudsim/build/
+*.class
+cloudsim-3.0.3/
+*.jar
+*.pkl
+
