@@ -104,10 +104,9 @@ by hand. Ten of those values were wrong:
 - 5 November lost 600,000 views to a typo.
 - Five other days had small transcription errors.
 
-In addition, the old `build_hourly_workload.py` on GitHub implemented a
-different algorithm (raised-cosine profile with log-normal noise) that was never
-used to produce the committed results, and `data/raw/wikimedia_daily.csv` was
-an all-agents download for a different date range (5 Oct – 30 Nov 2023).
+In addition, the old repository script implemented an unverified generator that was never
+used to produce the committed results, and the previous raw data file was
+an unverified download for a different date range and filter.
 
 The current version uses the correct daily totals exported directly from the
 Wikimedia Pageviews tool with agent = user, and the build script matches the
