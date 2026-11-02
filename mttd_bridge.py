@@ -1,26 +1,35 @@
 """
 mttd_bridge.py  --  Runs the MTTD loop (Monitor-Train-Test-Deploy) on a
 semi-synthetic hourly workload trace (real daily totals, synthetic hourly profile)
-and exports predictions.csv for the CloudSim simulation.
+and exports predictions CSV for the CloudSim simulation.
 
 Put this file in the same folder as deployment_manager.py / arima_baseline.py.
 
 Usage:
-    python mttd_bridge.py --csv data/cricket_hourly_workload.csv --out predictions.csv
+    python mttd_bridge.py --csv data/cricket_hourly_workload.csv --out results/predictions_retrain.csv
+    python mttd_bridge.py --csv data/cricket_hourly_workload.csv --out results/predictions_noretrain.csv --no-retrain
     python mttd_bridge.py --csv data/cricket_hourly_workload.csv --no-arima     # if pmdarima won't install
-    python mttd_bridge.py --csv data/cricket_hourly_workload.csv --no-retrain   # "MTTD without retraining" run
 
 Output columns:
     hour, actual, predicted, active_model, retrain_event
 """
 import argparse
+import hashlib
+import importlib
+import json
+import os
+import platform
+import sys
+from datetime import datetime
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 from sklearn.svm import SVR
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import GridSearchCV
 
-from deployment_manager import DeploymentManager      # Eq. 5-6, two-strike logic
+from deployment_manager import DeploymentManager, L1_DEFAULT, L2_DEFAULT  # Eq. 5-6, two-strike logic
 from arima_baseline import performance_score, rmse, mae   # Eq. 2, 3, 4
 
 WINDOW = 24       # hourly data -> use last 24 h as features (daily pattern)
@@ -330,22 +339,95 @@ def summarize(log, pred_df, per_model, prefix):
         print(f"[warn] chart skipped: {e}")
 
 
+def compute_file_sha256(filepath):
+    h = hashlib.sha256()
+    with open(filepath, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def get_library_versions():
+    libs = ["numpy", "pandas", "sklearn", "pmdarima", "xgboost", "torch", "tensorflow"]
+    versions = {"python": platform.python_version()}
+    for lib in libs:
+        try:
+            mod = importlib.import_module(lib)
+            versions[lib] = getattr(mod, "__version__", "installed")
+        except Exception:
+            versions[lib] = "not installed"
+    return versions
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--csv", default="data/cricket_hourly_workload.csv",
                     help="path to workload CSV (default: data/cricket_hourly_workload.csv)")
-    ap.add_argument("--out", default="predictions.csv")
+    ap.add_argument("--out", default="results/predictions_retrain.csv",
+                    help="path to output predictions CSV (default: results/predictions_retrain.csv)")
     ap.add_argument("--no-arima", action="store_true")
     ap.add_argument("--skip", default="", help="comma list from: svr,rf,arima,xgb,lstm")
     ap.add_argument("--no-retrain", action="store_true")
     a = ap.parse_args()
+
     s = load_series(a.csv)
     print(f"Loaded {len(s)} hourly points, min={s.min():.0f} max={s.max():.0f}")
     skip = set(x.strip() for x in a.skip.split(",") if x.strip())
     if a.no_arima:
         skip.add("arima")
+
+    # Ensure output directory exists
+    out_path = Path(a.out)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
     out, log, per_model = run(s, skip=skip, allow_retrain=not a.no_retrain)
     out.to_csv(a.out, index=False, float_format="%.2f")
     summarize(log, out, per_model, a.out.rsplit(".", 1)[0])
     sc = performance_score(out["actual"].values, out["predicted"].values)
     print(f"\nWrote {a.out} ({len(out)} rows). Overall Score = {sc:.2f}%")
+
+    # Write results/run_manifest.json
+    manifest_dir = out_path.parent
+    manifest_path = manifest_dir / "run_manifest.json"
+
+    models_trained = log[log["phase"] == "Test"]["model"].unique().tolist()
+    fallbacks = [m for m in models_trained if m == "NeuralNet-MLP"]
+
+    run_info = {
+        "dataset_sha256": compute_file_sha256(a.csv),
+        "row_count": len(s),
+        "constants": {
+            "WINDOW": WINDOW,
+            "TRAIN_LEN": TRAIN_LEN,
+            "TEST_LEN": TEST_LEN,
+            "CYCLE": CYCLE,
+            "lambda1": L1_DEFAULT,
+            "lambda2": L2_DEFAULT,
+        },
+        "models_trained": models_trained,
+        "models_skipped": sorted(list(skip)),
+        "fallback_notes": fallbacks,
+        "library_versions": get_library_versions(),
+        "timestamp": datetime.now().isoformat(),
+        "command_line": " ".join(sys.argv),
+        "output_file": str(a.out),
+        "allow_retrain": not a.no_retrain,
+        "overall_score": round(float(sc), 4),
+    }
+
+    manifest = {}
+    if manifest_path.exists():
+        try:
+            with open(manifest_path, "r", encoding="utf-8") as mf:
+                manifest = json.load(mf)
+        except Exception:
+            manifest = {}
+
+    runs = manifest.get("runs", [])
+    runs.append(run_info)
+    manifest.update(run_info)
+    manifest["runs"] = runs
+
+    with open(manifest_path, "w", encoding="utf-8") as mf:
+        json.dump(manifest, mf, indent=2)
+    print(f"Saved run manifest to {manifest_path}")

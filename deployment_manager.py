@@ -15,6 +15,9 @@ Behaviour (mirrors the flowchart in Fig. 4):
         and continue -- give the model one more cycle before retraining.
       - If Score > threshold again on the very next cycle (2nd strike):
         trigger retraining and model reselection.
+
+Note: The __main__ block at the bottom uses fabricated actual and predicted
+values as an illustration of the threshold state machine, not an experiment.
 """
 
 from dataclasses import dataclass, field
@@ -92,6 +95,7 @@ if __name__ == "__main__":
     from model_selector import evaluate_all_models, select_active_model
 
     print("=== Simulating deployment with a workload REGIME CHANGE ===")
+    print("(Illustration of the threshold state machine, not an experiment)")
     print("(uniform workload for the first half, random for the second half")
     print(" -- this should force the framework to detect degradation and")
     print(" trigger retraining, similar to the paper's Fig. 15 comparison)\n")
@@ -111,7 +115,8 @@ if __name__ == "__main__":
     rng = np.random.default_rng(0)
 
     def fake_cycle(pattern, n=40, drift=0.0, noise_level=2):
-        """Simulates 'actual vs predicted' for a deployment cycle. We don't
+        """Illustration of the threshold state machine, not an experiment.
+        Simulates 'actual vs predicted' for a deployment cycle. We don't
         re-run the full model here (that's the sliding-window/ARIMA update
         loop from predictors.py in a live system) -- for this demo we
         approximate degrading accuracy when the pattern shifts, to exercise

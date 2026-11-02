@@ -77,9 +77,11 @@ if __name__ == "__main__":
         ax.set_title(name)
         ax.set_xlabel("Minutes")
         ax.set_ylabel("Avg requests/min")
-    plt.tight_layout()
-    plt.savefig("workload_patterns_preview.png", dpi=100)
-    print("Saved preview to workload_patterns_preview.png")
+    import os
+    out_path = os.path.join("results", "figures", "workload_patterns_preview.png")
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    plt.savefig(out_path, dpi=100)
+    print(f"Saved preview to {out_path}")
     for name, fn in PATTERNS.items():
         df = fn(duration_min=697)
         print(name, df["avg_requests_per_min"].describe().to_dict())

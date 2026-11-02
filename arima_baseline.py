@@ -4,7 +4,7 @@ ARIMA baseline predictor + the paper's evaluation metrics.
 Implements:
   - fit_arima(): trains ARIMA with auto-selected (p,d,q) via pmdarima's AutoARIMA
                  (mirrors the paper's PACF/ACF-based parameter selection, Sec 4.3)
-  - forecast_arima(): one-step-ahead rolling forecast over a test window
+  - forecast_arima_rolling(): one-step-ahead rolling forecast over a test window
   - rmse(), mae(): Eq. 2 and Eq. 3
   - performance_score(): Eq. 4, the weighted, normalized RMSE+MAE score
 """
@@ -81,14 +81,12 @@ def forecast_arima_rolling(model, train_series, test_series):
     the model with the true observed value before predicting the next one.
     This matches how ARIMA is used operationally in the paper (predicting
     the next minute's workload from recent history)."""
-    history = list(train_series)
     preds = []
     m = model  # pmdarima models support .update()
     for actual_value in test_series:
         pred = m.predict(n_periods=1)[0]
         preds.append(pred)
         m.update([actual_value])
-        history.append(actual_value)
     return np.array(preds)
 
 

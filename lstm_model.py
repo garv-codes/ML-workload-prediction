@@ -138,10 +138,10 @@ def evaluate_lstm_on_workload(df, train_frac=0.7, test_len=100, window=5,
         _ = torch.zeros(1)
         backend = "torch"
     except Exception:
-        try:
-            import tensorflow
+        import importlib.util
+        if importlib.util.find_spec("tensorflow") is not None:
             backend = "tf"
-        except Exception:
+        else:
             backend = "mlp"
 
     values = df[value_col].values
