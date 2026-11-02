@@ -1,123 +1,129 @@
-# Dataset: Cricket Hourly Workload
+# Cricket Hourly Workload Dataset
 
-## Source
-
-Daily page-view counts for the English Wikipedia article on the
-[2023 Cricket World Cup](https://en.wikipedia.org/wiki/2023_Cricket_World_Cup),
-retrieved from the **Wikimedia Pageviews REST API**.
-
-### API endpoint and parameters
-
-| Parameter | Value | Notes |
-|-----------|-------|-------|
-| Endpoint  | `https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/` | |
-| Project   | `en.wikipedia` | English Wikipedia |
-| Article   | `2023_Cricket_World_Cup` | TODO(owner): confirm exact title used |
-| Access    | `all-access` | TODO(owner): confirm filter used |
-| Agent     | `all-agents` | TODO(owner): confirm filter used |
-| Granularity | `daily` | |
-| Start     | `20231005` | First day of the World Cup |
-| End       | `20231130` | 57 daily data points (Oct 5 – Nov 30, 2023) |
-
-### Retrieval date
-
-The cached raw data in `raw/wikimedia_daily.csv` was retrieved in October 2026.
-TODO(owner): confirm or update the original retrieval date.
-
-### Licensing and attribution
-
-Wikimedia page-view data is provided by the Wikimedia Foundation under the
-[Wikimedia REST API Terms of Use](https://wikimedia.org/api/rest_v1/#/Pageviews_data).
-Page-view statistics are aggregated, non-personal data.  Please see
-[Wikimedia's Terms of Use](https://foundation.wikimedia.org/wiki/Policy:Terms_of_Use)
-and the [data dumps license page](https://dumps.wikimedia.org/legal.html) for
-authoritative licensing information.  We do not assert a specific license for
-the raw page-view counts; consult Wikimedia's own terms.
+This directory contains the **canonical semi-synthetic cricket workload dataset**
+used for evaluating the MTTD framework on multi-day real-world traffic volume.
 
 ---
 
-## What is real / what is synthetic
+## 1. Provenance and Metadata
 
-| Aspect | Status | Details |
-|--------|--------|---------|
-| **Daily page-view totals** | **Real** (measured) | 57 daily counts from Wikimedia, reflecting actual user visits to the article. |
-| **Hourly split (70/30 peak/off-peak)** | **Synthetic** (modelled) | 70 % of each day's views assigned to hours 14:00–21:00 (IST), 30 % to remaining hours. |
-| **Within-day shape** | **Synthetic** | Raised-cosine profile centred on 18:00 for peak hours; uniform for off-peak. |
-| **Flash-crowd noise and spikes** | **Synthetic** | Multiplicative log-normal noise (σ = 0.15) injected per hour. |
-| **Daily total preservation** | **Exact** | After noise, hourly values are renormalised so each day's sum equals the real daily total (within ±1 due to integer rounding). |
-| **Seed** | **Fixed (42)** | Deterministic; same seed → identical output. |
-
-> **Important:** Only the daily totals are real measurements.  The intra-day
-> (hourly) shape and the spikes are synthetic, produced by the build script.
-> This dataset should be described as **"semi-synthetic"** or **"real daily
-> totals with a synthetic hourly profile"** — never as "real hourly traffic"
-> or "real-world traffic dynamics".
-
----
-
-## Transformation steps
-
-1. **Fetch daily data** from the Wikimedia Pageviews API (or read cached
-   `raw/wikimedia_daily.csv`).  57 daily points: 2023-10-05 to 2023-11-30.
-
-2. **Expand the first 56 days** into 24 hourly buckets each (56 × 24 = 1,344 rows).
-   The 57th day (Nov 30) is not expanded because the target row count is 1,344.
-
-3. **Compute base hourly profile** for each day:
-   - Peak hours 14:00–21:00 (8 hours, end exclusive at 22:00): receive 70 %
-     of the daily total, distributed via a raised-cosine profile centred at 18:00.
-   - Off-peak hours (remaining 16): receive 30 %, uniformly.
-
-4. **Apply multiplicative log-normal noise** (μ=0, σ=0.15) to each hour.
-
-5. **Renormalise** hourly values so they sum exactly to the day's real total.
-
-6. **Round** to non-negative integers; adjust the largest hour by the rounding
-   residual to preserve the daily sum exactly.
-
-7. **Assert** each day's hourly sum equals the raw daily value within ±1.
-
-### Timezone assumption
-
-The peak window 14:00–22:00 is intended to model IST (UTC+05:30), since
-matches were played in India.  Wikimedia daily boundaries are UTC.  The
-script does **not** shift day boundaries to align with IST — the peak window
-is approximate and synthetic regardless.
-TODO(owner): confirm the timezone assumption used in the original run.
+| Attribute | Value |
+|---|---|
+| **Source** | Daily page views exported from the Wikimedia Pageviews Analysis tool (`pageviews.wmcloud.org`), columns `Date,<article name>` |
+| **Article title** | `TODO(owner)`: confirm exact article title used in initial query |
+| **Project** | `TODO(owner)`: confirm project filter (e.g. `en.wikipedia`) |
+| **Access filter** | `TODO(owner)`: confirm access filter (e.g. `all-access`) |
+| **Agent filter** | `TODO(owner)`: confirm agent filter (e.g. `user`) |
+| **Export date** | `TODO(owner)`: confirm date export was downloaded |
+| **Time period** | **2023-10-01 to 2023-11-25** (56 days) |
+| **Granularity** | Hourly (56 × 24 = 1,344 rows) |
+| **File schema** | `Timestamp,Hits` (e.g. `2023-10-01 00:00:00,759`) |
+| **First timestamp** | `2023-10-01 00:00:00` |
+| **Last timestamp** | `2023-11-25 23:00:00` |
+| **SHA-256** | `0411f7b72cab109e31d0eed31da0c385c831ff85796dea49905b8b0926140c45` |
+| **Total hits** | 29,957,762 |
+| **Mean hits/hour** | 22,290.0 |
+| **Min hits/hour** | 630 |
+| **Max hits/hour** | 117,612 (2023-11-19 17:00:00) |
+| **Day 1 total** | 111,272 |
+| **Day 56 total** | 36,908 |
+| **Oracle noise floor** | **4.06%** (Eq. 4 performance score) |
 
 ---
 
-## Output schema
+## 2. Real vs. Synthetic Components
 
-| Column | Type | Description |
-|--------|------|-------------|
-| `Timestamp` | `str` (`YYYY-MM-DD HH:MM:SS`) | Hourly timestamp, starting 2023-10-05 00:00:00 |
-| `Hits` | `int` (non-negative) | Page views attributed to this hour |
+| Component | Status | Description |
+|---|---|---|
+| **Daily page-view totals** | **Real** (measured) | The 56 daily totals are empirical page-view counts from Wikimedia. They are preserved **exactly** in the hourly file (daily sum of hourly hits = daily total). |
+| **Intra-day split** | **Synthetic** (modelled) | 70% of each day's views are allocated evenly over the 8-hour window 14:00–21:59 (8.75% per hour). The remaining 30% are allocated evenly over the other 16 hours (1.875% per hour). |
+| **Within-band shape** | **Synthetic** (flat) | Flat distribution within peak and off-peak bands. No curved or bell-shaped shaping is applied. |
+| **Noise injection** | **Synthetic** | Each hour is multiplied by uniform noise in `[0.92, 1.08]` (uniform ±8%), seeded with RNG seed 42. |
+| **Renormalisation** | **Exact** | Hourly values are scaled to match the empirical daily total exactly, rounded to integers, and any rounding residual is assigned to the largest hour. |
 
-- **Rows:** 1,344 (56 days × 24 hours)
-- **No NaN, no trailing junk lines, no negative values.**
-- Header row: `Timestamp,Hits`
-
----
-
-## File inventory
-
-| File | Description |
-|------|-------------|
-| `raw/wikimedia_daily.csv` | Cached daily page-view data (57 rows, `date,views`) |
-| `build_hourly_workload.py` | Generator script — run with `--seed 42` for the canonical CSV |
-| `cricket_hourly_workload.csv` | **Canonical** semi-synthetic hourly workload (1,344 rows) |
+> **Critical Notice:** Only daily totals represent real empirical measurements.
+> The hourly profile and fluctuations are synthetically generated.
+> This trace is **semi-synthetic** and should not be cited as empirical hourly server traffic.
 
 ---
 
-## Regeneration
+## 3. Timezone Note
+
+The 14:00–21:59 peak window was chosen to approximate local match hours in India (IST, UTC+05:30)
+during the cricket tournament. Wikimedia Pageviews daily boundaries are recorded in UTC.
+The generation script does not shift calendar day boundaries to align with IST; the intra-day
+profile is synthetic in either case.
+
+---
+
+## 4. Recovered Daily Totals
+
+Because the build script guarantees that the sum of hourly values for each day
+equals the daily total, summing the canonical hourly CSV reproduces the original
+daily totals with zero discrepancy.
+
+The recovered totals are saved in [`raw/daily_totals_recovered.csv`](raw/daily_totals_recovered.csv)
+(56 rows, `Date,views`).
+
+---
+
+## 5. Dataset History
+
+1. **Commit `808162d`:** Earlier `cricket_hourly_workload.csv` with integer index `Timestamp`
+   (1..1344) and a trailing termination banner (`** Process exited **`). Its daily totals
+   diverged from the canonical data (e.g. Day 1 was 110,592 instead of 111,272; differences up to 2.7×).
+   All previously committed `results/predictions_*` were generated against that obsolete version.
+2. **Commit `0a2a93c`:** An automated rebuild that overwrote the data with an incompatible date range
+   and non-canonical parameters. That rebuild was discarded.
+3. **Canonical Version:** The current `data/cricket_hourly_workload.csv` (1,344 rows,
+   SHA-256 `0411f7b72cab109e31d0eed31da0c385c831ff85796dea49905b8b0926140c45`).
+   All experiments and results in this repository are executed on this version.
+
+---
+
+## 6. Verification and Reproduction
+
+### Verification
+
+Run the verification test suite:
 
 ```bash
-# Offline (uses cached raw CSV):
-python data/build_hourly_workload.py --seed 42
-
-# Refresh from API:
-python data/build_hourly_workload.py --refresh --seed 42
+python data/verify_dataset.py
 ```
 
-Running with `--seed 42` always produces an identical file (same SHA-256 hash).
+The script verifies:
+1. Row count is exactly 1,344.
+2. Timestamps are monotonically increasing hourly timestamps from `2023-10-01 00:00:00` to `2023-11-25 23:00:00`.
+3. Non-negative integers with no missing or NaN values.
+4. Daily totals match `raw/daily_totals_recovered.csv` with 0 difference.
+5. SHA-256 hash equals `0411f7b72cab109e31d0eed31da0c385c831ff85796dea49905b8b0926140c45`.
+6. Prints the oracle noise floor Score (4.06%).
+
+### Regeneration from Daily Totals
+
+```bash
+python data/build_hourly_workload.py --input data/raw/daily_totals_recovered.csv --out data/cricket_hourly_workload.csv --seed 42
+```
+
+Re-running with seed 42 reproduces every value in `cricket_hourly_workload.csv` byte-identically.
+
+---
+
+## 7. Irreducible Noise Floor
+
+Because uniform noise in `[0.92, 1.08]` (±8%) is injected into every hour,
+an oracle predictor that knows the exact daily total and the exact deterministic profile
+still incurs prediction error against the noisy realization:
+
+$$\text{Oracle Noise Floor Score} \approx 4.06\%$$
+
+Scores near 4% represent this irreducible limit; differences between models near 4%
+reflect noise fitting rather than meaningful architectural superiority.
+
+---
+
+## 8. Terms and Attribution
+
+Wikimedia page view counts are made available under Wikimedia Terms of Use:
+- [Wikimedia Terms of Use](https://wikimediafoundation.org/wiki/Terms_of_Use)
+- [Wikimedia Pageviews API Documentation](https://wikitech.wikimedia.org/wiki/Analytics/AQS/Pageviews)
