@@ -6,9 +6,13 @@ and exports predictions CSV for the CloudSim simulation.
 Put this file in the same folder as deployment_manager.py / arima_baseline.py.
 
 Usage:
-    python mttd_bridge.py --csv data/cricket_hourly_workload.csv --out results/predictions_retrain.csv
-    python mttd_bridge.py --csv data/cricket_hourly_workload.csv --out results/predictions_noretrain.csv --no-retrain
-    python mttd_bridge.py --csv data/cricket_hourly_workload.csv --no-arima     # if pmdarima won't install
+    # standard MTTD (paper mode): the model changes only when two-strike retraining is triggered
+    python mttd_bridge.py --csv data/cricket_hourly_workload.csv --out results/cricket/predictions_all5.csv
+    # extension: re-select the active model every 24 hours / every hour
+    python mttd_bridge.py --csv data/cricket_hourly_workload.csv --out results/cricket/predictions_daily.csv --reselect-every 24
+    python mttd_bridge.py --csv data/cricket_hourly_workload.csv --out results/cricket/predictions_hourly.csv --reselect-every 1
+    # options: --no-retrain, --no-arima, --skip svr,rf,arima,xgb,lstm, --reselect-window, --margin,
+    #          --col, --window, --train-len, --test-len, --cycle
 
 Output columns:
     hour, actual, predicted, active_model, retrain_event
@@ -39,14 +43,19 @@ CYCLE = 24        # deployment cycle = 1 day
 
 
 # ---------------------------------------------------------------- data
-def load_series(path):
+def load_series(path, col=None):
+    """Reads one numeric column of a CSV as the workload series.
+    col = column name or 0-based index. Default: column 1 if the file has >= 2 columns
+    (timestamp, value), else column 0. Non-numeric rows (e.g. footers) are dropped."""
     import warnings
     df = pd.read_csv(path)
-    df = df.iloc[:, :2]
-    df.columns = ["t", "hits"]
-    df["hits"] = pd.to_numeric(df["hits"], errors="coerce")
-    df = df.dropna().reset_index(drop=True)      # removes the '** Process exited **' line
-    series = df["hits"].values.astype(float)
+    if col is None:
+        idx = 1 if df.shape[1] >= 2 else 0
+    elif str(col).lstrip("-").isdigit():
+        idx = int(col)
+    else:
+        idx = list(df.columns).index(col)
+    series = pd.to_numeric(df.iloc[:, idx], errors="coerce").dropna().reset_index(drop=True).values.astype(float)
     if len(series) != 1344:
         warnings.warn(
             f"Expected canonical dataset of 1,344 rows, but loaded {len(series)} rows from {path}",
@@ -56,7 +65,8 @@ def load_series(path):
     return series
 
 
-def make_xy(series, window=WINDOW):
+def make_xy(series, window=None):
+    window = window or WINDOW
     X, y = [], []
     for i in range(len(series) - window):
         X.append(series[i:i + window])
@@ -227,10 +237,18 @@ def test_and_select(models, series, t_now):
 
 
 # ---------------------------------------------------------------- main loop
-def run(series, skip=(), allow_retrain=True):
-    """Returns (predictions_df, model_log_df). model_log_df has one row per model per phase,
-    like the paper's Tables 5-13 (Test phase, Deployment phase I, II, ...)."""
+def run(series, skip=(), allow_retrain=True, reselect_every=0, reselect_window=None, margin=0.0):
+    """Returns (predictions_df, model_log_df, per_model). model_log_df has one row per model per phase,
+    like the paper's Tables 5-13 (Test phase, Deployment phase I, II, ...).
+
+    Paper mode (reselect_every = 0): the model changes only when the two-strike rule triggers retraining.
+    Periodic reselection (extension, reselect_every = N > 0): every N time steps the active model is
+    switched to the candidate with the lowest Score over the last `reselect_window` steps (default:
+    test window), but only if it beats the current model by more than `margin` (e.g. 0.10 = 10 %).
+    Retraining by the two-strike rule stays active in both modes."""
     log = []
+    rw = reselect_window or TEST_LEN
+    hist_act, hist_pred, switches = [], {}, []
 
     def log_phase(phase, t, details, active_name, thr=None, retrain=False):
         for name, (r, m_, sc) in details.items():
@@ -265,16 +283,34 @@ def run(series, skip=(), allow_retrain=True):
             per_model.setdefault(n_, ([], []))
             per_model[n_][0].extend(actual_cycle)
             per_model[n_][1].extend(p_)
-        preds = cyc_preds[active.name]
+        # assemble the forecasts of the model that is active at each step (it may change inside a cycle)
+        preds = np.empty(len(actual_cycle))
+        names_per_step, cyc_switches = [], 0
+        for i, h in enumerate(range(t, end)):
+            if reselect_every and len(hist_act) >= rw and (h - t0) % reselect_every == 0:
+                a_win = np.array(hist_act[-rw:])
+                cand = {n: performance_score(a_win, np.array(hist_pred[n][-rw:]))
+                        for n in cyc_preds if n in hist_pred}
+                best_n = min(cand, key=cand.get)
+                if best_n != active.name and active.name in cand and cand[best_n] < cand[active.name] * (1 - margin):
+                    switches.append((h, active.name, best_n))
+                    active = next(m for m in models if m.name == best_n)
+                    cyc_switches += 1
+            preds[i] = cyc_preds[active.name][i]
+            names_per_step.append(active.name)
+            hist_act.append(actual_cycle[i])
+            for n_ in cyc_preds:
+                hist_pred.setdefault(n_, []).append(cyc_preds[n_][i])
         res = mgr.run_cycle(actual_cycle, preds)
         retrain = bool(res["retrain_triggered"]) and allow_retrain
         det = {n: (rmse(actual_cycle, p), mae(actual_cycle, p), performance_score(actual_cycle, p))
                for n, p in cyc_preds.items()}
         log_phase(f"Deploy{cyc}", t, det, active.name, res["threshold_used"], retrain)
-        for h, a, p in zip(range(t, end), actual_cycle, preds):
-            rows.append((h, a, p, active.name, 0))
+        for h, a, p, nm in zip(range(t, end), actual_cycle, preds, names_per_step):
+            rows.append((h, a, p, nm, 0))
+        extra = f" switches={cyc_switches}" if reselect_every else ""
         print(f"  cycle {cyc:2d} hours {t}-{end - 1}: active={active.name:12s} score={res['score']:.2f}% "
-              f"thr={res['threshold_used']:.2f}% strikes={res['strikes']} retrain={retrain}")
+              f"thr={res['threshold_used']:.2f}% strikes={res['strikes']} retrain={retrain}{extra}")
         t = end
         if retrain and t < len(series):
             lo = max(0, t - TRAIN_LEN - TEST_LEN)
@@ -309,6 +345,8 @@ def summarize(log, pred_df, per_model, prefix):
     print(f"MTTD (dynamic switching) overall Score: {mttd_overall:.2f}%")
     print("(all models above are retrained at the same MTTD retraining events; "
           "overall_Score = Eq. 4 on the full deployment period)")
+    n_switch = int((pred_df.active_model != pred_df.active_model.shift()).sum() - 1)
+    print(f"Model switches during deployment: {n_switch}")
     log.round(3).to_csv(prefix + "_model_scores.csv", index=False)
     summ.to_csv(prefix + "_model_summary.csv")
     try:
@@ -322,9 +360,8 @@ def summarize(log, pred_df, per_model, prefix):
         ax[0].set_yscale("log")
         ax[0].legend(ncol=3, fontsize=8)
         ax[0].set_title("Per-cycle Score of every candidate model (deployment phase)")
-        cyc = dep[dep.is_active == 1].drop_duplicates("start_hour")
         names = sorted(dep.model.unique())
-        ax[1].step(cyc.start_hour, [names.index(n) for n in cyc.model], where="post")
+        ax[1].step(pred_df.hour, [names.index(n) for n in pred_df.active_model], where="post")
         ax[1].set_yticks(range(len(names)))
         ax[1].set_yticklabels(names)
         ax[1].set_title("Active model selected by MTTD over time")
@@ -363,15 +400,32 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--csv", default="data/cricket_hourly_workload.csv",
                     help="path to workload CSV (default: data/cricket_hourly_workload.csv)")
-    ap.add_argument("--out", default="results/predictions_retrain.csv",
-                    help="path to output predictions CSV (default: results/predictions_retrain.csv)")
+    ap.add_argument("--out", default="results/cricket/predictions_all5.csv",
+                    help="path to output predictions CSV (default: results/cricket/predictions_all5.csv)")
     ap.add_argument("--no-arima", action="store_true")
     ap.add_argument("--skip", default="", help="comma list from: svr,rf,arima,xgb,lstm")
     ap.add_argument("--no-retrain", action="store_true")
+    ap.add_argument("--col", default=None, help="value column: name or 0-based index (default: column 1)")
+    ap.add_argument("--window", type=int, default=WINDOW, help="feature window = lagged values per forecast")
+    ap.add_argument("--train-len", type=int, default=TRAIN_LEN, help="training window length (time steps)")
+    ap.add_argument("--test-len", type=int, default=TEST_LEN, help="test window length (time steps)")
+    ap.add_argument("--cycle", type=int, default=CYCLE, help="deployment cycle length (time steps)")
+    ap.add_argument("--reselect-every", type=int, default=0,
+                    help="extension: re-pick the active model every N steps (24 = daily, 1 = every hour); 0 = paper mode")
+    ap.add_argument("--reselect-window", type=int, default=None,
+                    help="steps of recent history used to score models when reselecting (default: test window)")
+    ap.add_argument("--margin", type=float, default=0.0,
+                    help="switch only if the best model beats the current one by this fraction (0.10 = 10 percent)")
     a = ap.parse_args()
 
-    s = load_series(a.csv)
-    print(f"Loaded {len(s)} hourly points, min={s.min():.0f} max={s.max():.0f}")
+    WINDOW, TRAIN_LEN, TEST_LEN, CYCLE = a.window, a.train_len, a.test_len, a.cycle
+    s = load_series(a.csv, a.col)
+    need = TRAIN_LEN + TEST_LEN + 2 * CYCLE
+    if len(s) < need:
+        raise SystemExit(f"Series has {len(s)} points but train+test+2 cycles needs {need}. "
+                         f"Lower --train-len/--test-len/--cycle.")
+    print(f"Loaded {len(s)} points, min={s.min():.0f} max={s.max():.0f}, mean={s.mean():.0f}")
+    print(f"Settings: window={WINDOW} train={TRAIN_LEN} test={TEST_LEN} cycle={CYCLE}")
     skip = set(x.strip() for x in a.skip.split(",") if x.strip())
     if a.no_arima:
         skip.add("arima")
@@ -380,7 +434,8 @@ if __name__ == "__main__":
     out_path = Path(a.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    out, log, per_model = run(s, skip=skip, allow_retrain=not a.no_retrain)
+    out, log, per_model = run(s, skip=skip, allow_retrain=not a.no_retrain,
+                              reselect_every=a.reselect_every, reselect_window=a.reselect_window, margin=a.margin)
     out.to_csv(a.out, index=False, float_format="%.2f")
     summarize(log, out, per_model, a.out.rsplit(".", 1)[0])
     sc = performance_score(out["actual"].values, out["predicted"].values)
@@ -412,6 +467,9 @@ if __name__ == "__main__":
         "command_line": " ".join(sys.argv),
         "output_file": str(a.out),
         "allow_retrain": not a.no_retrain,
+        "reselect_every": a.reselect_every,
+        "reselect_window": a.reselect_window or TEST_LEN,
+        "margin": a.margin,
         "overall_score": round(float(sc), 4),
     }
 

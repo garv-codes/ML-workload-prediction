@@ -4,6 +4,13 @@
 # (Nashaat et al., Scientific Reports, 2026) + Novelty Additions
 # Pinned to tested working environment
 # ==============================================================================
+#
+# Environment notes:
+#   - The cricket results in results/cricket/ were produced on a Windows machine
+#     (JDK 26 for CloudSim). Rerunning on another machine can change LSTM-related
+#     numbers slightly, because PyTorch training is not bit-identical across platforms.
+#   - CloudSim results are deterministic for the same prediction CSV files.
+# ==============================================================================
 
 # Core Paper Dependencies (ARIMA, SVR, Random Forest, Metrics, Workloads)
 numpy==1.26.4
@@ -22,10 +29,9 @@ requests==2.32.5
 xgboost==3.4.1
 
 # Novelty Model 2: Deep Learning (LSTM)
-# PyTorch/TensorFlow (optional): If neither is installed, the pipeline
-# automatically falls back to scikit-learn's MLPRegressor ('NeuralNet-MLP').
-# torch>=2.0.0
+# CPU-only install: pip install torch --index-url https://download.pytorch.org/whl/cpu
+# The reported results used the real PyTorch LSTM, not the MLP fallback.
+torch>=2.0.0
 
 # Testing
 pytest==8.3.4
-
