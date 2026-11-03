@@ -1,1 +1,3 @@
 data/*.csv -text
+*.tex linguist-documentation
+*.cls linguist-documentation
